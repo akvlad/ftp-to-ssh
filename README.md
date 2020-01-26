@@ -41,7 +41,7 @@ In gzip mode utility compresses each chunk before base64 encoding.
 | ----------------- | ------- | -------------------------------------------------------------------- | ----------- |
 | port 				| int     | 8888                                                                 | Port to listen |
 | host 				| String  | 0.0.0.0                                                              | Hostname to listen |
-| spawn 			| String  |  sshpass -p {{PASS}} ssh {{USER}}@127.0.0.1 <br/>(Default: `bash`) | Command to spawn new console. Available parameters <br/>`{{USER}}` - login of the ftp user, <br/>`{{PASS}}` - password of the ftp user |
+| spawn 			| String  | `sshpass -p {{PASS}} ssh {{USER}}@127.0.0.1` <br/>(Default: `bash`) | Command to spawn new console. Available parameters <br/>`{{USER}}` - login of the ftp user, <br/>`{{PASS}}` - password of the ftp user |
 | chunkSize 		| int 	  | 10000                                                                | Amount of data in bytes to transfer at once. Should not be too big as it is written by `echo "..." >>...` by default. |
 | tmpFolder 		| String  | /tmp                                                                 | Folder to store chunks of the file to transfer. Has to be writable for the spawned bash session. |
 | timeoutSec 		| int     | 30                                                                   | Timeout in seconds for a command to execute or for a chunk to transfer. |
