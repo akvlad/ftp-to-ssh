@@ -61,7 +61,7 @@ public class CommandAdapterTest {
 		sock.getOutputStream().flush();
 		sock.getOutputStream().write("USER b".getBytes(StandardCharsets.UTF_8));
 		sock.getOutputStream().flush();
-		Thread.sleep(100);
+		Thread.sleep(500);
 		sock.getOutputStream().write("USER c\n".getBytes(StandardCharsets.UTF_8));
 		sock.getOutputStream().flush();
 		Thread.sleep(100);
