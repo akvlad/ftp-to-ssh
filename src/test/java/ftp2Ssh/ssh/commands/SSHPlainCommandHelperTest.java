@@ -87,7 +87,7 @@ public class SSHPlainCommandHelperTest {
 
 	@Test
 	public void lsla() {
-		Assert.assertEquals("ls -la --time-style=\"+%Y-%m-%dT%H:%M\" \"dir\"", helper.lsla("dir"));
+		Assert.assertEquals("ls -la -R \"dir\"", helper.lsla("dir"));
 	}
 
 	@Test
