@@ -21,7 +21,6 @@ public class SSHLayer {
 	
 	public SSHLayer(String spawnCmd, ISSHCommandHelperFactory sshCommandHelperFactory) throws IOException, TimeoutException, InterruptedException {
 		ExpectJ spawner = new ExpectJ();
-		spawner.spawn("pwd");
 		spawned = spawner.spawn(spawnCmd);
 		this.sshCmdHelperFactory = sshCommandHelperFactory;
 		cmd(sshCmdHelperFactory.getHelper().echo("HI"));

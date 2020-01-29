@@ -308,7 +308,9 @@ public class FTPLayer extends Observable {
     }
     
     private void ftpDELE(String cmd) throws IOException, InterruptedException, TimeoutException {
-    	ftpRMD(cmd);
+    	String dirName=cmd.substring(5);
+        mainExec.cmd(cmdHelper().rmrf(dirName));
+        fireResponse("250 Deleted");
     }
     
     

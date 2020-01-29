@@ -27,7 +27,7 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	protected String echo = "echo";
 	protected String cd = "cd";
 	protected String pwd = "pwd";
-	protected String lsla = "ls -la --time-style=\"+%Y-%m-%dT%H:%M\"";
+	protected String lsla = "ls -la -R";
 	protected String lsw1 = "ls -w1";
 	protected String size = "stat {{FILE}} | grep -oEh \"Size: [0-9]+\" | cut -b 7-";
 	protected String mkdir = "mkdir";
@@ -51,6 +51,10 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	
 	protected String screenArg(String arg) { 
 		return this.screenArgs(arg)[0];
+	}
+	
+	protected String screenArgNoQuotes(String arg) { 
+		return arg.replaceAll("([\\$`])", "\\\\$1");
 	}
 
 	@Override
@@ -173,12 +177,12 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 			while(spawnMatch.find()) {
 				int index = Integer.parseInt(spawnMatch.group(1));
 				res = res
-						.replaceAll(spawnMatch.group(), screenArg(match.group(index)));
+						.replace(spawnMatch.group(), screenArgNoQuotes(match.group(index)));
 			}
 		}
 		return res
-				.replaceAll("{{USER}}", screenArg(login))
-				.replaceAll("{{PASV}}", screenArg(password));
+				.replace("{{USER}}", screenArgNoQuotes(login))
+				.replace("{{PASV}}", screenArgNoQuotes(password));
 	}
 
 	
