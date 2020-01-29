@@ -6,6 +6,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import expectj.Executor;
 import expectj.ExpectJ;
 import expectj.Spawn;
 import expectj.TimeoutException;
@@ -19,9 +20,15 @@ public class SSHLayer {
 	
 	private ISSHCommandHelperFactory sshCmdHelperFactory;
 	
-	public SSHLayer(String spawnCmd, ISSHCommandHelperFactory sshCommandHelperFactory) throws IOException, TimeoutException, InterruptedException {
+	public SSHLayer(String[] spawnCmd, ISSHCommandHelperFactory sshCommandHelperFactory) throws IOException, TimeoutException, InterruptedException {
 		ExpectJ spawner = new ExpectJ();
-		spawned = spawner.spawn(spawnCmd);
+		spawned = spawner.spawn(new Executor() {
+			
+			@Override
+			public Process execute() throws IOException {
+				return Runtime.getRuntime().exec(spawnCmd);
+			}
+		});
 		this.sshCmdHelperFactory = sshCommandHelperFactory;
 		cmd(sshCmdHelperFactory.getHelper().echo("HI"));
 	}

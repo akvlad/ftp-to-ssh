@@ -11,7 +11,7 @@ public class SSHLayerPooled extends SSHLayer implements ISSHLayerPooled {
 	
 	private ISSHLayerPool pool;
 
-	public SSHLayerPooled(String spawnCmd, ISSHCommandHelperFactory sshCommandHelperFactory, ISSHLayerPool pool) throws IOException, TimeoutException, InterruptedException {
+	public SSHLayerPooled(String[] spawnCmd, ISSHCommandHelperFactory sshCommandHelperFactory, ISSHLayerPool pool) throws IOException, TimeoutException, InterruptedException {
 		super(spawnCmd, sshCommandHelperFactory);
 		this.pool = pool;
 	}

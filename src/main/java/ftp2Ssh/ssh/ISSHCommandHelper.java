@@ -20,5 +20,5 @@ public interface ISSHCommandHelper {
 	
 	String DS();
 	String tmpFolder();
-	String getSpawnCmd(String login, String password) throws Exception;
+	String[] getSpawnCmd(String login, String password) throws Exception;
 }

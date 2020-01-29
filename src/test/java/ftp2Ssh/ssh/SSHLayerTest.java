@@ -32,7 +32,7 @@ public class SSHLayerTest {
 		Mockito.when(sshCommandHelper.echo(Mockito.anyString())).then((InvocationOnMock invocation) -> {
 				return "echo " + invocation.getArgument(0, String.class);
 		});
-		layer = new SSHLayer("bash", sshCommandHelperFactory);
+		layer = new SSHLayer(new String[] {"bash"}, sshCommandHelperFactory);
 	}
 	
 	

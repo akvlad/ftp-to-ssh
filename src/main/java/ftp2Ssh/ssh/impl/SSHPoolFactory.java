@@ -12,7 +12,7 @@ import ftp2Ssh.ssh.ISSHPoolFactory;
 public class SSHPoolFactory implements ISSHPoolFactory {
 	
 	@Override
-	public ISSHLayerPool createPool(String spawnCmd) {
+	public ISSHLayerPool createPool(String[] spawnCmd) {
 		SSHLayerPool pool = SpringContext.getContext().getBean(SSHLayerPool.class);
 		pool.setSpawnCmd(spawnCmd);
 		return pool;

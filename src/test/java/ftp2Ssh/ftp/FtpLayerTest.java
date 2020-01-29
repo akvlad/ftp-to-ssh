@@ -69,7 +69,7 @@ public class FtpLayerTest {
 		Mockito.when(sshCommandHelperMock.DS()).thenReturn("/");
 		Mockito.when(sshCommandHelperMock.tmpFolder()).thenReturn("/tmp");
 		
-		Mockito.when(poolFactoryMock.createPool(Mockito.anyString())).thenReturn(sshLayerPoolMock);
+		Mockito.when(poolFactoryMock.createPool(Mockito.any())).thenReturn(sshLayerPoolMock);
 		Mockito.when(sshLayerPoolMock.acquire()).thenReturn(sshLayerPooledMock);
 		Mockito.when(sshCommandHelperFactoryMock.getHelper()).thenReturn(sshCommandHelperMock);
 		Mockito.when(sshCommandHelperFactoryMock.getDecoder()).thenReturn(Base64.getDecoder()::decode);
@@ -85,12 +85,12 @@ public class FtpLayerTest {
 	@Test
 	public  void loginTest() {
 		try {
-			Mockito.when(sshCommandHelperMock.getSpawnCmd(Mockito.anyString(), Mockito.anyString())).thenReturn("SPAWN");
+			Mockito.when(sshCommandHelperMock.getSpawnCmd(Mockito.anyString(), Mockito.anyString())).thenReturn(new String[] {"SPAWN"});
 			layer.CMD("USER a\n", ctx);
 			verifyResponseEq("331 OK\r\n");
 			layer.CMD("PASS b\n", ctx);
 			Mockito.verify(sshCommandHelperMock).getSpawnCmd(Mockito.eq("a"), Mockito.eq("b"));
-			Mockito.verify(poolFactoryMock).createPool(Mockito.eq("SPAWN"));
+			Mockito.verify(poolFactoryMock).createPool(Mockito.eq(new String[] {"SPAWN"}));
 			verifyResponseEq("230 OK\r\n");
 			Mockito.reset(ftpResponseListenerMock);
 		} catch (Exception e) {
@@ -125,12 +125,12 @@ public class FtpLayerTest {
 	@Test
 	public  void loginErrorTest() throws Exception {
 		Mockito.when(sshLayerPoolMock.acquire()).thenThrow(new IOException("TEST EXCEPTION"));
-		Mockito.when(sshCommandHelperMock.getSpawnCmd(Mockito.anyString(), Mockito.anyString())).thenReturn("SPAWN");
+		Mockito.when(sshCommandHelperMock.getSpawnCmd(Mockito.anyString(), Mockito.anyString())).thenReturn(new String[] {"SPAWN"});
 		layer.CMD("USER a\n", ctx);
 		verifyResponseEq("331 OK\r\n");
 		layer.CMD("PASS b\n", ctx);
 		Mockito.verify(sshCommandHelperMock).getSpawnCmd(Mockito.eq("a"), Mockito.eq("b"));
-		Mockito.verify(poolFactoryMock).createPool(Mockito.eq("SPAWN"));
+		Mockito.verify(poolFactoryMock).createPool(Mockito.eq(new String[] {"SPAWN"}));
 		Mockito.verify(ftpResponseListenerMock).onResponse(Mockito.startsWith("451 TEST EXCEPTION"));
 	} 
 	

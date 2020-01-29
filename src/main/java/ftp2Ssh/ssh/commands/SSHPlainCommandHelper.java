@@ -164,25 +164,16 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	}
 	
 	@Override
-	public String getSpawnCmd(String login, String password) throws Exception {
+	public String[] getSpawnCmd(String login, String password) throws Exception {
 		String res = spawn;
-		if (usernameReg != null) {
-			Pattern re = Pattern.compile(usernameReg);
-			Matcher match = re.matcher(login);
-			if (!match.find()) {
-				throw new Exception("login incorrect");
-			}
-			re = Pattern.compile("\\{\\{USER\\[(\\d+)\\]\\}\\})");
-			Matcher spawnMatch = re.matcher(spawn);
-			while(spawnMatch.find()) {
-				int index = Integer.parseInt(spawnMatch.group(1));
-				res = res
-						.replace(spawnMatch.group(), screenArgNoQuotes(match.group(index)));
-			}
-		}
-		return res
-				.replace("{{USER}}", screenArgNoQuotes(login))
-				.replace("{{PASV}}", screenArgNoQuotes(password));
+		
+		String[] args = res.split("\\s+");
+
+		return Arrays.stream(args).map((String arg) -> {
+				return arg.replace("{{USER}}", screenArgNoQuotes(login))
+						.replace("{{PASV}}", screenArgNoQuotes(password));
+		}).toArray(String[]::new);
+				
 	}
 
 	

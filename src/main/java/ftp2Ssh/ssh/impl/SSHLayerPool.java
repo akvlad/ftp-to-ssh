@@ -30,7 +30,7 @@ import ftp2Ssh.ssh.ISSHCommandHelperFactory;
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class SSHLayerPool implements ISSHLayerPool {
-	private String spawnCmd;
+	private String[] spawnCmd;
 	private int max;
 	private Executor asyncExecutor;
 	private final BlockingQueue<ISSHLayerPooled> idle = new LinkedBlockingQueue<>();
@@ -40,6 +40,11 @@ public class SSHLayerPool implements ISSHLayerPool {
 	private ISSHCommandHelperFactory sshCmdHelperFactory;
 
 	public SSHLayerPool(String spawnCmd, int max) {
+		setSpawnCmd(spawnCmd.split("\\s+"));
+		setMax(max);
+	}
+	
+	public SSHLayerPool(String[] spawnCmd, int max) {
 		setSpawnCmd(spawnCmd);
 		setMax(max);
 	}
@@ -173,11 +178,11 @@ public class SSHLayerPool implements ISSHLayerPool {
 		this.asyncExecutor = Executors.newFixedThreadPool(max);
 	}
 
-	public String getSpawnCmd() {
+	public String[] getSpawnCmd() {
 		return spawnCmd;
 	}
 
-	public void setSpawnCmd(String spawnCmd) {
+	public void setSpawnCmd(String[] spawnCmd) {
 		this.spawnCmd = spawnCmd;
 	}
 
