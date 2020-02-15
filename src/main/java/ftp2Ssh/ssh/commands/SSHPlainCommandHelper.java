@@ -27,7 +27,7 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	protected String echo = "echo";
 	protected String cd = "cd";
 	protected String pwd = "pwd";
-	protected String lsla = "ls -la -R";
+	protected String lsla = "ls -la";
 	protected String lsw1 = "ls -w1";
 	protected String size = "stat {{FILE}} | grep -oEh \"Size: [0-9]+\" | cut -b 7-";
 	protected String mkdir = "mkdir";
