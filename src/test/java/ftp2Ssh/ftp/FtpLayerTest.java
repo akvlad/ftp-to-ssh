@@ -214,10 +214,10 @@ public class FtpLayerTest {
 		loginTest();
 		Mockito.when(sshCommandHelperMock.size("TEST")).thenReturn("TEST");
 		Mockito.when(sshCommandHelperMock.size("EMPTY")).thenReturn("EMPTY");
-		Mockito.when(sshLayerPooledMock.cmd("TEST")).thenReturn("TEST");
+		Mockito.when(sshLayerPooledMock.cmd("TEST")).thenReturn("100");
 		Mockito.when(sshLayerPooledMock.cmd("EMPTY")).thenReturn("");
 		layer.CMD("SIZE TEST", ctx);
-		verifyResponseEq("213 TEST\r\n");
+		verifyResponseEq("213 100\r\n");
 		layer.CMD("SIZE EMPTY", ctx);
 		verifyResponseEq("213 0\r\n");
 	}
@@ -257,12 +257,19 @@ public class FtpLayerTest {
 	public void ftpRETRTest() throws IOException, InterruptedException, TimeoutException {
 		loginTest();
 		Mockito.when(sshCommandHelperMock.mkdir(Mockito.anyString())).thenReturn("mkdir TEST");
+		
+		Mockito.when(sshCommandHelperMock.slice(Mockito.anyString(), Mockito.anyString(), 
+				Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn("TEST");
+		Mockito.when(sshCommandHelperMock.size(Mockito.anyString())).thenReturn("SIZE TEST");
+		
+		
 		Mockito.when(sshCommandHelperMock.lsw1(Mockito.anyString())).thenReturn("ls -w1 TEST");
 		Mockito.when(sshLayerPooledMock.cmd("ls -w1 TEST")).thenReturn("F1\nF2\n");
 		
 		Mockito.when(sshCommandHelperMock.retrPiece(Mockito.endsWith("F1"))).thenReturn("RETR F1");
 		Mockito.when(sshCommandHelperMock.retrPiece(Mockito.endsWith("F2"))).thenReturn("RETR F2");
 		
+		Mockito.when(sshLayerPooledMock.cmd("SIZE TEST")).thenReturn("100");
 		Mockito.when(sshLayerPoolMock.cmdA("RETR F1")).thenReturn(
 				ConcurrentUtils.constantFuture(
 						new AsyncCmdRes(null, Base64.getEncoder().encodeToString(new byte[] {0,0,0,0,0,1}))
@@ -290,6 +297,10 @@ public class FtpLayerTest {
 		loginTest();
 		Mockito.when(sshCommandHelperMock.mkdir(Mockito.anyString())).thenReturn("mkdir TEST");
 		Mockito.when(sshCommandHelperMock.lsw1(Mockito.anyString())).thenReturn("ls -w1 TEST");
+		Mockito.when(sshCommandHelperMock.slice(Mockito.anyString(), Mockito.anyString(), 
+				Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn("TEST");
+		Mockito.when(sshCommandHelperMock.size(Mockito.anyString())).thenReturn("SIZE TEST");
+		Mockito.when(sshLayerPooledMock.cmd("SIZE TEST")).thenReturn("100");
 		Mockito.when(sshLayerPooledMock.cmd("ls -w1 TEST"))
 			.thenThrow(new IOException("TEST"))
 			.thenReturn("F1\nF2\n");

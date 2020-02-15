@@ -38,6 +38,7 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	protected String spawn;
 	protected String tmpFolder = "/tmp";
 	protected String usernameReg = null;
+	protected String fileSlice = "dd \"if={{FROM}}\" \"of={{TO}}\" bs={{SLICE_SIZE}} count={{SLICE_COUNT}} skip={{SLICE_OFFSET}}";
 	protected int piecesStored = 0;
 	protected int chunkSize = 1000; 
 	
@@ -174,6 +175,20 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 						.replace("{{PASV}}", screenArgNoQuotes(password));
 		}).toArray(String[]::new);
 				
+	}
+	
+	@Override
+	public String slice(String from, String to, long slice_size, long slices, long offset) {
+		return fileSlice
+				.replace("{{FROM}}", from)
+				.replace("{{TO}}", to)
+				.replace("{{SLICE_SIZE}}", Long.toString(slice_size))
+				.replace("{{SLICE_OFFSET}}", Long.toString(offset))
+				.replace("{{SLICE_COUNT}}", Long.toString(slices))
+				.replace("{{SIZE}}", Long.toString(slice_size * slices))
+				.replace("{{OFFSET}}", Long.toString(slice_size * offset))
+				.replace("{{CHUNK_SIZE}}", Integer.toString(chunkSize))
+				.replace("{{DS}}", DS());
 	}
 
 	

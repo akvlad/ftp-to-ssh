@@ -19,10 +19,12 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
@@ -52,7 +54,7 @@ public class FTPLayer extends Observable {
 	private ISSHPoolFactory sshPoolFactory;
 	private IFTPDataSock dataSock;
 	private ISSHCommandHelperFactory cmdHelperFactory;
-	private Executor helperExecutor = Executors.newFixedThreadPool(2);
+	private Executor helperExecutor = Executors.newFixedThreadPool(1);
 	private List<FTPResponseListener> listeners = new ArrayList<>();
 	
 	
@@ -120,13 +122,18 @@ public class FTPLayer extends Observable {
 			fireResponse("502 Command not implemented.");
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
-			if (e.getCause()instanceof FTPException) {
+			Throwable c = e;
+			while(c.getCause() != null) {
+				if (!(c instanceof FTPException)) {
+					c = c.getCause();
+					continue;
+				}
 				FTPException _e = (FTPException) (e.getCause());
 				fireResponse(String.format("%d %s", _e.getCode(), _e.getMessage()));
-			} else {
-				fireResponse("451 " + e.getCause().getMessage());
+				return;
 			}
-		} catch (Throwable e) {
+			fireResponse("451 " + c.getMessage());
+		}  catch (Throwable e) {
 			e.printStackTrace();
 			fireResponse("451 " + e.getMessage());
 		}
@@ -288,11 +295,8 @@ public class FTPLayer extends Observable {
     
     private void ftpSIZE(String cmd) throws IOException, InterruptedException, TimeoutException {
         String name = cmd.substring(5);
-        String out = mainExec.cmd(cmdHelper().size(name)); // String.format("stat %s | grep -oEh \"Size: [0-9]+\"", name));
-        if (out.isEmpty()) {
-            fireResponse("213 0");
-        }
-        fireResponse("213 " + out);
+        long out = fileSize(name);
+        fireResponse("213 " + Long.toString(out));
     }
     
     private void ftpMKD(String cmd) throws IOException, InterruptedException, TimeoutException {
@@ -326,55 +330,43 @@ public class FTPLayer extends Observable {
     }
     
     private void ftpRETR(String cmd) throws Exception {
-    	final BlockingQueue<Boolean> interruptingQueue = new LinkedBlockingQueue<>();
+    	FolderTransmitter transmitter = null;
     	try {
     		ISSHCommandHelper helper = getCmdHelperFactory().getHelper();
 	        String name = cmd.substring(5);
-	        String tmpFolder = getTmpFolder();
-	        mainExec.cmd(helper.mkdir(tmpFolder));
-	        mainExec.cmd(helper.prepareFileToRetr(name, tmpFolder)); // " base64 -w 1000 <" + name + " | split -l 1 - " + tmpFolder);
+	        long size = fileSize(name);
 	        fireResponse("150 Opening data connection.");
 	        dataSock.startDataSock(ctx.getDest());
-	        final String files = mainExec.cmd(helper.lsw1(tmpFolder));
-	        final BlockingQueue<Future<AsyncCmdRes>> results = new LinkedBlockingQueue<>();
+	        BlockingQueue<Future<AsyncCmdRes>> results = new LinkedBlockingQueue<>();
+	        transmitter = new FolderTransmitter(helper, sshPool);
+	        final FolderTransmitter _transmitter = transmitter;
+	        FileSlicer slicer = new FileSlicer(name, size, 100 * chunkSize, mainExec, helper, transmitter);
+	        
+	        slicer.slice();
+	        slicer.slice();
+	        
 	        helperExecutor.execute(() -> {
-	        	for (String file : files.split("\n")) {
-	        		Future<AsyncCmdRes> res = null;
-					try {
-						if (interruptingQueue.size() != 0 && interruptingQueue.poll()) {
-							break;
-						}
-						res = sshPool.cmdA(helper.retrPiece(tmpFolder + "/" + file));
-					} catch (Throwable e) {
-						res = ConcurrentUtils.constantFuture(new AsyncCmdRes(new Exception(e), null));
-						break;
-					} finally {
-						try {
-							results.put(res);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-	        	}
-	        	AsyncCmdRes res = new AsyncCmdRes(new EOFException(), null);
-				results.add(ConcurrentUtils.constantFuture(res));
+	        	_transmitter.process(results);
 	        });
-        	while (true) {
-				AsyncCmdRes res = results.poll(timeoutMSec, TimeUnit.MILLISECONDS).get();
-				if (res.e != null && res.e instanceof EOFException) {
-					break;
-				}
-				if (res.e != null) {
-					throw res.e;
-				}
-				dataSock.write(getDecoder().decode(res.res.trim()));
-			}
-	        mainExec.cmd("rm -rf " + tmpFolder);
+	        
+	        while (true) {
+	        	AsyncCmdRes chunk = results.poll(30, TimeUnit.SECONDS).get();
+	        	if (chunk.e != null) {
+	        		if (chunk.e instanceof EOFException) {
+	        			break;
+	        		}
+	        		throw chunk.e;
+	        	}
+	        	dataSock.write(getDecoder().decode(chunk.res.trim()));
+	        }
+	        
     	} catch (IOException | InterruptedException | TimeoutException e) {
     		throw e;
     	} finally {
     		dataSock.stopDataSock();
-    		interruptingQueue.put(true);
+    		if (transmitter != null) {
+    			transmitter.close();
+    		}
     	}
     	fireResponse("226 Transfer complete.");
     }
@@ -386,23 +378,93 @@ public class FTPLayer extends Observable {
         mainExec.cmd(helper.mkdir(tmpFolder));
         fireResponse("150 Opening data connection.");
         dataSock.startDataSock(ctx.getDest());
-        byte[] ibuff = dataSock.read(chunkSize);
-        List<Future<AsyncCmdRes>> results = new LinkedList<>(); 
-        while(ibuff != null) {
+        long readBytes = 0;
+        mainExec.cmd(helper.rmrf(fileName));
+        List<Future<AsyncCmdRes>> results = new LinkedList<>();
+        List<Future<Object>> joinResults = new LinkedList<>();
+        while(true) {
+        	byte[] ibuff = dataSock.read(chunkSize);
+        	if (ibuff == null) {
+            	break;
+            }
         	results.add(sshPool.cmdA(helper.storePiece(ibuff, tmpFolder)));
-        	ibuff = dataSock.read(chunkSize);
+        	readBytes += ibuff.length;
+        	if (readBytes > 100 * chunkSize) {
+        		FutureTask<Object> joinFuture = waitAndJoinA(results, tmpFolder, fileName, helper);
+        		helper = cmdHelper();
+        		tmpFolder = getTmpFolder();
+                mainExec.cmd(helper.mkdir(tmpFolder));
+                results = new LinkedList<>();
+                readBytes = 0;
+                joinResults.add(joinFuture);
+                helperExecutor.execute(() -> {
+                	joinFuture.run();
+                });
+        	}
         }
-        
-        for (Future<AsyncCmdRes> res : results) {
+        for (Future<Object> joinResult : joinResults) {
+        	joinResult.get();
+        }
+        waitAndJoin(results, tmpFolder, fileName, helper);
+        fireResponse("226 Transfer complete.");
+    }
+    
+    private FutureTask<Object> waitAndJoinA(List<Future<AsyncCmdRes>> results, String tmpFolder, String fileName, ISSHCommandHelper helper) {
+    	return new FutureTask<Object>((Callable<Object>) () -> {
+			waitAndJoin(results, tmpFolder, fileName, helper);
+			return null;
+		});
+    } 
+    
+    private void waitAndJoin(List<Future<AsyncCmdRes>> results, String tmpFolder, String fileName, ISSHCommandHelper helper) 
+    		throws Exception {
+    	for (Future<AsyncCmdRes> res : results) {
         	AsyncCmdRes _res = res.get();
         	if (_res.e != null) {
         		throw _res.e;
         	}
         }
-        mainExec.cmd(helper.rmrf(fileName));
-        mainExec.cmd(helper.joinStoredPieces(tmpFolder, fileName));
+		mainExec.cmd(helper.joinStoredPieces(tmpFolder, fileName));
         mainExec.cmd(helper.rmrf(tmpFolder));
-        fireResponse("226 Transfer complete.");
+    }
+    
+    private long fileSize(String name) throws IOException, InterruptedException, TimeoutException {
+    	String out = mainExec.cmd(cmdHelper().size(name));
+    	return out.isEmpty() ? 0 : Long.parseLong(out.trim()); 
+    }
+    
+    private BlockingQueue<Future<AsyncCmdRes>> transferSlice(
+    			String tmpFolder, 
+    			BlockingQueue<Boolean> interruptingQueue,
+    			Future<Object> futureToWait
+    		) 
+    		throws IOException, InterruptedException, TimeoutException {
+    	final BlockingQueue<Future<AsyncCmdRes>> results = new LinkedBlockingQueue<>();
+    	helperExecutor.execute(() -> {
+    		Future<AsyncCmdRes> res = null;
+    		try {
+	        	if (futureToWait != null) {
+	        		futureToWait.get();
+	        	}
+	        	ISSHCommandHelper helper = getCmdHelperFactory().getHelper();
+	        	final String files = mainExec.cmd(helper.lsw1(tmpFolder));
+	            
+	        	for (String file : files.split("\n")) {
+					if (interruptingQueue.size() != 0 && interruptingQueue.peek()) {
+						break;
+					}
+					res = sshPool.cmdA(helper.retrPiece(tmpFolder + "/" + file));
+					results.put(res);
+	        	}
+	        	AsyncCmdRes cmdRes = new AsyncCmdRes(new EOFException(), null);
+				results.put(ConcurrentUtils.constantFuture(cmdRes));
+    		} catch (Throwable e) {
+				res = ConcurrentUtils.constantFuture(new AsyncCmdRes(new Exception(e), null));
+				try { results.put(res); } catch (InterruptedException e1) {}
+			}
+        	
+        });
+        return results;
     }
 }
 
