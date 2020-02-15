@@ -40,6 +40,7 @@ public class ConfigurationProvider {
 		public String exit = null;
 		public String DS = null;
 		public String tmpFolder = null;
+		public String fileSlice = null;
 		@JsonProperty(defaultValue = "30")
 		public int timeoutSec = 30;
 		@JsonProperty(defaultValue = "10")
@@ -239,6 +240,13 @@ public class ConfigurationProvider {
 	public boolean getGzip() {
 		return configuration.gzip;
 	}
+	
+	@Bean
+	@Scope(BeanDefinition.SCOPE_PROTOTYPE)
+	@Qualifier("fileSlice")
+	public String getFileSlice() {
+		return configuration.fileSlice;
+	}
 
 	//-------------------------------------------------------------
 	
@@ -332,6 +340,10 @@ public class ConfigurationProvider {
 	
 	public void setGzip(boolean gzip) {
 		configuration.gzip = gzip;
+	}
+	
+	public void setFileSlice(String fileSlice) {
+		this.configuration.fileSlice = fileSlice;
 	}
 
 }

@@ -321,5 +321,11 @@ public class SSHPlainCommandHelper implements ISSHCommandHelper {
 	public void setUsernameReg(String usernameReg) {
 		this.usernameReg = usernameReg;
 	}
+	
+	@Autowired(required = false)
+	@Qualifier("fileSlice")
+	public void setFileSlice(String fileSlice) {
+		this.fileSlice = fileSlice;
+	}
 
 }
