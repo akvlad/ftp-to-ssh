@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>akvlad</groupId>
   <artifactId>ftp2Ssh</artifactId>
-  <version>0.0.5</version>
+  <version>${version}</version>
   <build>
   	<plugins>
   		<plugin>
@@ -12,16 +12,6 @@
   				<target>1.8</target>
   			</configuration>
   		</plugin>
-  		<!--  <plugin>
-  			<artifactId>maven-jar-plugin</artifactId>
-  			<configuration>
-  				<archive>
-  					<manifest>
-  						<mainClass>ftp2Ssh.Main</mainClass>
-  					</manifest>
-  				</archive>
-  			</configuration>
-  		</plugin> -->
   		<plugin>
   			<artifactId>maven-shade-plugin</artifactId>
   			<executions>
@@ -39,6 +29,54 @@
   					</configuration>
   				</execution>
   			</executions>
+  		</plugin>
+
+  		<plugin>
+  			<groupId>com.alexecollins.maven.plugin</groupId>
+            <artifactId>script-maven-plugin</artifactId>
+            <version>1.0.0</version>
+  			<executions>
+  				<execution>
+  					<phase>package</phase>
+  					<goals>
+  						<goal>execute</goal>
+  					</goals>
+  					<configuration>
+  						<script><![CDATA[
+  							import java.io.File;
+  							import java.io.FileOutputStream;
+  							artifactFactory.createArtifact("commons-io", "commons-io", "2.6", "compile", "jar");
+  							import org.apache.commons.io.FileUtils;
+  							String jarName = "ftp2Ssh-"+project.version+".jar";
+  							for(File f : FileUtils.listFiles(new File("dist/"), new String[] {"jar"}, false)) {
+  								FileUtils.deleteQuietly(f);
+  							}
+  							FileUtils.copyFile(
+  								new File(project.basedir + "/target/"+jarName),
+  								new File(project.basedir + "/dist/"+jarName));
+  							FileOutputStream fo = new FileOutputStream(new File(project.basedir + "/dist/start.sh"));
+  							fo.write("#!/bin/bash\n".getBytes());
+  							fo.write("DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" >/dev/null 2>&1 && pwd )\";\n".getBytes());
+  							fo.write("pushd $DIR;\n".getBytes());
+  							fo.write(("java -jar " + jarName +"\n").getBytes());
+  							fo.write("popd;\n".getBytes());
+  							fo.flush();
+  						]]></script>
+  					</configuration>
+  				</execution>
+  			</executions>
+  			<dependencies>
+  				<dependency>
+				    <groupId>commons-io</groupId>
+				    <artifactId>commons-io</artifactId>
+				    <version>2.6</version>
+				</dependency>
+				<dependency>
+            		<groupId>org.apache-extras.beanshell</groupId>
+            		<artifactId>bsh</artifactId>
+            		<version>2.0b6</version>
+        		</dependency>
+  			</dependencies>
   		</plugin>
   	</plugins>
   </build>
@@ -106,4 +144,7 @@
   		<version>3.6</version>
   	</dependency>
   </dependencies>
+  <properties>
+  	<version>0.0.5</version>
+  </properties>
 </project>
